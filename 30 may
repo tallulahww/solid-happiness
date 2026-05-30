@@ -1,0 +1,950 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>guess the album.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { font-size: 16px; }
+
+  body {
+    background: #fff;
+    color: #000;
+    font-family: 'Courier Prime', 'Courier New', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 3rem 1.5rem 6rem;
+  }
+
+  .hed {
+    font-size: 13px;
+    letter-spacing: 0.18em;
+    text-transform: lowercase;
+    margin-bottom: 3rem;
+    align-self: flex-start;
+    max-width: 520px;
+    width: 100%;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .game {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+  }
+
+  /* ── canvas ── */
+  .canvas-wrap {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    border: 1px solid #000;
+    position: relative;
+    background: #f0f0f0;
+    overflow: hidden;
+  }
+
+  #gameCanvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .loading-msg {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: #999;
+    letter-spacing: 0.12em;
+    pointer-events: none;
+  }
+
+  /* ── clues ── */
+  .clues { display: flex; flex-direction: column; }
+
+  .clue-row {
+    display: flex;
+    gap: 1.5rem;
+    padding: 8px 0;
+    border-top: 1px solid #000;
+    font-size: 13px;
+    line-height: 1.4;
+  }
+
+  .clue-row:last-child { border-bottom: 1px solid #000; }
+
+  .clue-n {
+    color: #aaa;
+    min-width: 52px;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    padding-top: 2px;
+    flex-shrink: 0;
+  }
+
+  .clue-v { font-style: italic; }
+
+  .clue-locked {
+    color: #ccc;
+    font-style: normal;
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  /* ── ticks ── */
+  .ticks-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .ticks { display: flex; gap: 6px; }
+
+  .tick {
+    width: 13px;
+    height: 13px;
+    border: 1px solid #000;
+    flex-shrink: 0;
+  }
+
+  .tick.hit { background: #000; }
+  .tick.miss { background: #000; opacity: 0.2; }
+  .tick.skip { border-style: dashed; }
+
+  .skip-btn {
+    font-family: 'Courier Prime', monospace;
+    font-size: 11px;
+    color: #aaa;
+    background: none;
+    border: none;
+    cursor: pointer;
+    letter-spacing: 0.12em;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 0;
+    transition: color 0.15s;
+  }
+
+  .skip-btn:hover { color: #000; }
+  .skip-btn:disabled { color: #ddd; cursor: not-allowed; text-decoration: none; }
+
+  /* ── input ── */
+  .input-wrap { position: relative; width: 100%; }
+
+  .input-row {
+    display: flex;
+    border: 1px solid #000;
+  }
+
+  #guessInput {
+    flex: 1;
+    background: #fff;
+    border: none;
+    padding: 12px 15px;
+    font-family: 'Courier Prime', monospace;
+    font-size: 14px;
+    color: #000;
+    outline: none;
+    min-width: 0;
+  }
+
+  #guessInput::placeholder { color: #bbb; font-style: italic; }
+  #guessInput:disabled { background: #fafafa; cursor: not-allowed; }
+
+  .sub-btn {
+    background: #000;
+    color: #fff;
+    border: none;
+    padding: 12px 20px;
+    font-family: 'Courier Prime', monospace;
+    font-size: 13px;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+    flex-shrink: 0;
+  }
+
+  .sub-btn:hover { opacity: 0.75; }
+  .sub-btn:disabled { background: #ccc; cursor: not-allowed; opacity: 1; }
+
+  /* ── autocomplete ── */
+  .ac-drop {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border: 1px solid #000;
+    border-top: none;
+    z-index: 50;
+    max-height: 200px;
+    overflow-y: auto;
+  }
+
+  .ac-item {
+    padding: 9px 15px;
+    font-size: 13px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+  }
+
+  .ac-item:last-child { border-bottom: none; }
+  .ac-item:hover, .ac-item.hi { background: #f5f5f5; }
+  .ac-sub { font-size: 10px; color: #aaa; margin-top: 2px; letter-spacing: 0.06em; }
+
+  /* ── guess history ── */
+  .history { display: flex; flex-direction: column; }
+
+  .h-row {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 7px 0;
+    border-top: 1px solid #eee;
+    font-size: 13px;
+    animation: fu 0.2s ease;
+  }
+
+  .h-row:last-child { border-bottom: 1px solid #eee; }
+  .h-n { color: #bbb; min-width: 20px; font-size: 10px; flex-shrink: 0; }
+  .h-t { flex: 1; }
+  .h-t.sk { color: #bbb; font-style: italic; }
+  .h-m { font-size: 12px; flex-shrink: 0; }
+  .h-m.ok { color: #000; }
+  .h-m.no { color: #ccc; }
+
+  @keyframes fu {
+    from { opacity: 0; transform: translateY(-3px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── result panel ── */
+  .result {
+    display: none;
+    flex-direction: column;
+    gap: 1.2rem;
+    padding: 1.4rem;
+    border: 1px solid #000;
+  }
+
+  .result.show {
+    display: flex;
+    animation: fu 0.35s ease;
+  }
+
+  .res-hed {
+    font-size: 20px;
+    font-style: italic;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+  }
+
+  .answer-block {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .ans-thumb {
+    width: 72px;
+    height: 72px;
+    object-fit: cover;
+    border: 1px solid #ddd;
+    flex-shrink: 0;
+    background: #f0f0f0;
+  }
+
+  .ans-artist { font-size: 15px; font-weight: 700; }
+  .ans-album  { font-size: 12px; color: #666; margin-top: 4px; font-style: italic; }
+  .ans-year   { font-size: 11px; color: #aaa; margin-top: 3px; letter-spacing: 0.08em; }
+
+  .copy-btn {
+    align-self: flex-start;
+    font-family: 'Courier Prime', monospace;
+    font-size: 11px;
+    color: #000;
+    background: none;
+    border: 1px solid #000;
+    padding: 7px 15px;
+    cursor: pointer;
+    letter-spacing: 0.1em;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .copy-btn:hover { background: #000; color: #fff; }
+
+  .timer { font-size: 11px; color: #aaa; letter-spacing: 0.08em; }
+  .timer b { color: #000; }
+
+  /* ── footer ── */
+  .footer {
+    font-size: 10px;
+    color: #ccc;
+    letter-spacing: 0.12em;
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+  }
+
+  /* ── error banner ── */
+  .error-banner {
+    display: none;
+    font-size: 11px;
+    color: #999;
+    font-style: italic;
+    letter-spacing: 0.06em;
+    padding: 4px 0;
+  }
+
+  /* ── responsive ── */
+  @media (max-width: 480px) {
+    body { padding: 2rem 1rem 5rem; }
+    .sub-btn { padding: 12px 14px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hed">guess the album.</div>
+
+<div class="game">
+
+  <div class="canvas-wrap">
+    <canvas id="gameCanvas" width="520" height="520"></canvas>
+    <div class="loading-msg" id="loadingMsg">loading cover art...</div>
+  </div>
+
+  <div class="error-banner" id="errorBanner"></div>
+
+  <div class="clues" id="clues"></div>
+
+  <div class="ticks-row">
+    <div class="ticks" id="ticks"></div>
+    <button class="skip-btn" id="skipBtn" disabled>skip</button>
+  </div>
+
+  <div class="input-wrap">
+    <div class="input-row">
+      <input id="guessInput" type="text" placeholder="album or artist..." autocomplete="off" spellcheck="false" disabled/>
+      <button class="sub-btn" id="subBtn" disabled>guess</button>
+    </div>
+    <div class="ac-drop" id="acDrop"></div>
+  </div>
+
+  <div class="history" id="history"></div>
+
+  <div class="result" id="result">
+    <div class="res-hed" id="resHed"></div>
+    <div class="answer-block">
+      <img class="ans-thumb" id="ansThumb" src="" alt="album cover"/>
+      <div>
+        <div class="ans-artist" id="ansArtist"></div>
+        <div class="ans-album"  id="ansAlbum"></div>
+        <div class="ans-year"   id="ansYear"></div>
+      </div>
+    </div>
+    <button class="copy-btn" id="copyBtn">copy result</button>
+    <div class="timer">next puzzle in <b id="countdown">--:--:--</b></div>
+  </div>
+
+  <div class="footer">
+    <span>6 guesses</span>
+    <span>clues unlock on wrong guesses</span>
+    <span>resets at midnight</span>
+  </div>
+
+</div>
+
+<script>
+/* ─────────────────────────────────────────
+   ALBUM LIST
+   mbid = MusicBrainz release ID (not release-group)
+   Find IDs at: https://musicbrainz.org
+   ───────────────────────────────────────── */
+const ALBUMS = [
+  {
+    artist: "Radiohead", album: "Kid A", year: 2000,
+    mbid: "b1392090-3b30-4031-aff9-3b1b49e3b5a2",
+    clues: ["electronic / post-rock", "released 2000", "a mountain at dusk, no faces"]
+  },
+  {
+    artist: "Arcade Fire", album: "Funeral", year: 2004,
+    mbid: "73012994-ac1b-4f5b-a032-bb1a027f5c4c",
+    clues: ["indie rock / baroque pop", "released 2004", "a suburb on fire, painted"]
+  },
+  {
+    artist: "Bon Iver", album: "For Emma, Forever Ago", year: 2008,
+    mbid: "9cbf6b89-9e5e-4a3e-9a23-683cad6c5f56",
+    clues: ["folk / indie", "released 2008", "blurred winter trees, monochrome"]
+  },
+  {
+    artist: "LCD Soundsystem", album: "Sound of Silver", year: 2007,
+    mbid: "ef8c5e74-3585-48bc-8c72-a3fe11fb3d17",
+    clues: ["dance-punk / electronic", "released 2007", "pure silver — entirely monochrome"]
+  },
+  {
+    artist: "Kendrick Lamar", album: "To Pimp a Butterfly", year: 2015,
+    mbid: "4f5bf200-9f38-4aca-8c9f-bfb52c0d2c11",
+    clues: ["hip-hop / jazz", "released 2015", "men on the White House lawn, sepia"]
+  },
+  {
+    artist: "Frank Ocean", album: "channel ORANGE", year: 2012,
+    mbid: "623b5d4e-7af8-4f43-8c0c-6a68038fbc70",
+    clues: ["r&b / neo-soul", "released 2012", "blurred orange still life, lo-fi"]
+  },
+  {
+    artist: "Kanye West", album: "My Beautiful Dark Twisted Fantasy", year: 2010,
+    mbid: "9e5f2b1c-c382-416e-9fd9-7a4b49b31d3d",
+    clues: ["hip-hop", "released 2010", "a painted mythology in red"]
+  },
+  {
+    artist: "Fiona Apple", album: "Fetch the Bolt Cutters", year: 2020,
+    mbid: "5fc40606-4524-4c7d-a613-a1c6f5e7571c",
+    clues: ["art rock / piano", "released 2020", "the artist with her dogs, warm indoor light"]
+  },
+  {
+    artist: "Mitski", album: "Puberty 2", year: 2016,
+    mbid: "7b3e9f81-0d7c-43bf-ac99-8b6cf6aba5d4",
+    clues: ["indie rock", "released 2016", "the artist at a table in warm light"]
+  },
+  {
+    artist: "Weyes Blood", album: "Titanic Rising", year: 2019,
+    mbid: "2adb6610-f6e3-4abb-b1fc-cd1498e64df5",
+    clues: ["art pop / chamber", "released 2019", "a bedroom submerged underwater, blue light"]
+  },
+  {
+    artist: "Grouper", album: "Dragging a Dead Deer Up a Hill", year: 2008,
+    mbid: "f44c5fd7-ec4e-4a39-982b-b893e7d9a874",
+    clues: ["ambient folk / dream pop", "released 2008", "green and grey blur, a figure in fog"]
+  },
+  {
+    artist: "Vampire Weekend", album: "Contra", year: 2010,
+    mbid: "74c3e4eb-6e7a-4c40-8e19-9b0e4a68843e",
+    clues: ["indie pop", "released 2010", "a polaroid of a blond woman, preppy"]
+  },
+  {
+    artist: "Joanna Newsom", album: "Ys", year: 2006,
+    mbid: "b6b21f47-ac02-4e8a-994b-d6ff46bed6cc",
+    clues: ["baroque folk / harp", "released 2006", "illustrated fairy tale scenes in gold"]
+  },
+  {
+    artist: "Animal Collective", album: "Merriweather Post Pavilion", year: 2009,
+    mbid: "97a51b9a-78b9-4c4a-a48c-92d0e4fbf01a",
+    clues: ["psychedelic pop", "released 2009", "a swirling optical illusion in blue"]
+  },
+  {
+    artist: "James Blake", album: "Overgrown", year: 2013,
+    mbid: "f5e6c37a-c977-4a29-afe8-3bc0e3defe40",
+    clues: ["electronic / soul", "released 2013", "near-black — a figure barely visible"]
+  },
+  {
+    artist: "Big Thief", album: "U.F.O.F.", year: 2019,
+    mbid: "5e35eeb5-3586-4e13-9327-2a1e50b65b6c",
+    clues: ["indie folk", "released 2019", "a woman's face obscured by leaves, green"]
+  },
+  {
+    artist: "Destroyer", album: "Kaputt", year: 2011,
+    mbid: "cd7e2c3c-5e34-43b0-abc6-9f7671f87e46",
+    clues: ["art pop / sophisti-pop", "released 2011", "soft focus, a woman in pale earth tones"]
+  },
+  {
+    artist: "Lorde", album: "Pure Heroine", year: 2013,
+    mbid: "37c15cf1-2c1a-4f6b-84e5-de15e51b73b9",
+    clues: ["art pop", "released 2013", "stark white, the artist's shadowed face"]
+  },
+  {
+    artist: "Sudan Archives", album: "Athena", year: 2022,
+    mbid: "3edc6f37-3c8d-4e14-9c06-e5d2c8a51bc9",
+    clues: ["r&b / afrofuturism", "released 2022", "vibrant red, the artist in striking regalia"]
+  },
+  {
+    artist: "Perfume Genius", album: "Set My Heart on Fire Immediately", year: 2020,
+    mbid: "3b4c8490-c5e2-4a59-9e5f-5e3e8d7e8c10",
+    clues: ["art pop / glam", "released 2020", "a bare torso against draped fabric, warm"]
+  },
+  {
+    artist: "Kelela", album: "Take Me Apart", year: 2017,
+    mbid: "a8f5d6a5-6a3f-4b2e-9c8d-1e2f3a4b5c6d",
+    clues: ["r&b / electronic", "released 2017", "the artist bathed in deep blue light"]
+  },
+  {
+    artist: "Alex G", album: "Rocket", year: 2017,
+    mbid: "c9e8d7f6-5b4a-3c2d-1e0f-9a8b7c6d5e4f",
+    clues: ["indie rock / lo-fi", "released 2017", "a dreamy painted illustration, earth tones"]
+  },
+  {
+    artist: "black midi", album: "Schlagenheim", year: 2019,
+    mbid: "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6e",
+    clues: ["math rock / post-punk", "released 2019", "black and white, abstract live photo"]
+  },
+  {
+    artist: "Gillian Welch", album: "Time (The Revelator)", year: 2001,
+    mbid: "2b3c4d5e-6f7a-8b9c-0d1e-2f3a4b5c6d7e",
+    clues: ["alt-country / folk", "released 2001", "grainy black and white portrait"]
+  },
+  {
+    artist: "PJ Harvey", album: "Stories from the City, Stories from the Sea", year: 2000,
+    mbid: "3c4d5e6f-7a8b-9c0d-1e2f-3a4b5c6d7e8f",
+    clues: ["art rock", "released 2000", "dark blue, abstract silhouette"]
+  },
+  {
+    artist: "Low", album: "Things We Lost in the Fire", year: 2001,
+    mbid: "4d5e6f7a-8b9c-0d1e-2f3a-4b5c6d7e8f9a",
+    clues: ["slowcore / indie", "released 2001", "near-black, a child's hands"]
+  },
+  {
+    artist: "Sufjan Stevens", album: "Illinois", year: 2005,
+    mbid: "ac7c4f0e-da2f-4a70-9399-d07d6a5f7433",
+    clues: ["indie folk / chamber pop", "released 2005", "Superman over a midwest cityscape"]
+  },
+  {
+    artist: "The National", album: "Boxer", year: 2007,
+    mbid: "19a55e99-3576-4f43-a6fa-3c174d52e9e0",
+    clues: ["indie rock", "released 2007", "a man in a boxing stance, muted tones"]
+  },
+  {
+    artist: "Julia Holter", album: "Have You in My Wilderness", year: 2015,
+    mbid: "5e6f7a8b-9c0d-1e2f-3a4b-5c6d7e8f9a0b",
+    clues: ["chamber pop / art song", "released 2015", "muted blue portrait, painterly"]
+  },
+  {
+    artist: "Courtney Barnett", album: "Sometimes I Sit and Think, and Sometimes I Just Sit", year: 2015,
+    mbid: "6f7a8b9c-0d1e-2f3a-4b5c-6d7e8f9a0b1c",
+    clues: ["indie rock / slacker", "released 2015", "the artist on a couch, deadpan"]
+  },
+];
+
+/* ─────────────────────────────────────────
+   COVER ART FETCHING
+   Uses Cover Art Archive directly.
+   If you self-host, remove the CORS proxy
+   and serve this file from your own domain.
+   ───────────────────────────────────────── */
+
+// Replace this with your own CORS proxy if self-hosting,
+// or remove entirely if serving from same origin as the API.
+const PROXY = "https://api.allorigins.win/raw?url=";
+
+async function fetchCoverArt(mbid, artist, album) {
+  // 1. Try direct release MBID
+  const directUrl = `https://coverartarchive.org/release/${mbid}/front-500`;
+  try {
+    const res = await fetch(PROXY + encodeURIComponent(directUrl));
+    if (res.ok) {
+      const blob = await res.blob();
+      if (blob.size > 1000) return URL.createObjectURL(blob);
+    }
+  } catch (e) { /* continue */ }
+
+  // 2. Search MusicBrainz for release ID, then try cover art
+  try {
+    const searchUrl = `https://musicbrainz.org/ws/2/release/?query=artist:"${encodeURIComponent(artist)}" AND release:"${encodeURIComponent(album)}"&fmt=json&limit=8`;
+    const res = await fetch(PROXY + encodeURIComponent(searchUrl));
+    if (res.ok) {
+      const data = await res.json();
+      if (data.releases) {
+        for (const rel of data.releases.slice(0, 5)) {
+          try {
+            const coverUrl = `https://coverartarchive.org/release/${rel.id}/front-500`;
+            const cr = await fetch(PROXY + encodeURIComponent(coverUrl));
+            if (cr.ok) {
+              const blob = await cr.blob();
+              if (blob.size > 1000) return URL.createObjectURL(blob);
+            }
+          } catch (e) { /* try next */ }
+        }
+      }
+    }
+  } catch (e) { /* continue */ }
+
+  return null;
+}
+
+/* ─────────────────────────────────────────
+   SEEDED RNG + DAY INDEX
+   ───────────────────────────────────────── */
+function seededRng(seed) {
+  let s = seed;
+  return () => {
+    s = (s * 1664525 + 1013904223) & 0xffffffff;
+    return (s >>> 0) / 0xffffffff;
+  };
+}
+
+function getDayIdx() {
+  const epoch = new Date(2024, 0, 1);
+  const now   = new Date();
+  return Math.floor((now - epoch) / 86400000);
+}
+
+function getCropParams(albumIdx, dayIdx) {
+  const rng   = seededRng(dayIdx * 137 + albumIdx * 31);
+  const scale = 6.5; // ~1/42 of the image area
+  const maxOff = 1 - 1 / scale;
+  return { ox: rng() * maxOff, oy: rng() * maxOff, scale };
+}
+
+/* ─────────────────────────────────────────
+   CANVAS DRAWING
+   ───────────────────────────────────────── */
+const gc = document.getElementById('gameCanvas');
+const gx = gc.getContext('2d');
+
+function drawCrop(img, ox, oy, scale) {
+  const W = gc.width, H = gc.height;
+  const srcW = img.naturalWidth, srcH = img.naturalHeight;
+  const size = Math.min(srcW, srcH);
+  const sw = size / scale;
+  const sh = size / scale;
+  // Centre the square crop area within the image
+  const baseX = (srcW - size) / 2;
+  const baseY = (srcH - size) / 2;
+  const sx = baseX + ox * (size - sw);
+  const sy = baseY + oy * (size - sh);
+  gx.clearRect(0, 0, W, H);
+  gx.drawImage(img, sx, sy, sw, sh, 0, 0, W, H);
+}
+
+function drawFull(img) {
+  const W = gc.width, H = gc.height;
+  const srcW = img.naturalWidth, srcH = img.naturalHeight;
+  const size = Math.min(srcW, srcH);
+  const ox = (srcW - size) / 2;
+  const oy = (srcH - size) / 2;
+  gx.clearRect(0, 0, W, H);
+  gx.drawImage(img, ox, oy, size, size, 0, 0, W, H);
+}
+
+/* ─────────────────────────────────────────
+   GAME STATE
+   ───────────────────────────────────────── */
+let G = {};
+let loadedImg = null;
+
+async function init() {
+  const day      = getDayIdx();
+  const idx      = day % ALBUMS.length;
+  const album    = ALBUMS[idx];
+  const crop     = getCropParams(idx, day);
+
+  G = { album, idx, day, crop, guesses: [], done: false, won: false };
+
+  renderTicks();
+  renderClues();
+  startCountdown();
+
+  document.getElementById('loadingMsg').style.display = 'flex';
+
+  // Try to load cover art
+  const url = await fetchCoverArt(album.mbid, album.artist, album.album);
+
+  document.getElementById('loadingMsg').style.display = 'none';
+
+  if (url) {
+    const img = new Image();
+    img.onload = () => {
+      loadedImg = img;
+      drawCrop(loadedImg, G.crop.ox, G.crop.oy, G.crop.scale);
+      enableControls();
+    };
+    img.onerror = () => {
+      showError("couldn't load cover — play with clues only.");
+      enableControls();
+    };
+    img.src = url;
+  } else {
+    showError("cover art unavailable today. clues still work.");
+    enableControls();
+  }
+}
+
+function enableControls() {
+  document.getElementById('guessInput').disabled = false;
+  document.getElementById('subBtn').disabled     = false;
+  document.getElementById('skipBtn').disabled    = false;
+}
+
+function showError(msg) {
+  const el = document.getElementById('errorBanner');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+/* ─────────────────────────────────────────
+   RENDER HELPERS
+   ───────────────────────────────────────── */
+function renderTicks() {
+  const el = document.getElementById('ticks');
+  el.innerHTML = '';
+  for (let i = 0; i < 6; i++) {
+    const d = document.createElement('div');
+    d.className = 'tick';
+    if (i < G.guesses.length) {
+      const g = G.guesses[i];
+      d.classList.add(g.correct ? 'hit' : g.skip ? 'skip' : 'miss');
+    }
+    el.appendChild(d);
+  }
+}
+
+function renderClues() {
+  const el    = document.getElementById('clues');
+  el.innerHTML = '';
+  const wrong = G.guesses.filter(g => !g.correct).length;
+  const unlockAt = [1, 3, 5];
+
+  G.album.clues.forEach((clue, i) => {
+    const row = document.createElement('div');
+    row.className = 'clue-row';
+
+    const n = document.createElement('div');
+    n.className = 'clue-n';
+    n.textContent = `clue ${i + 1}`;
+
+    const v = document.createElement('div');
+    if (wrong >= unlockAt[i] || G.done) {
+      v.className   = 'clue-v';
+      v.textContent = clue;
+    } else {
+      v.className   = 'clue-locked';
+      v.textContent = `after ${unlockAt[i]} wrong`;
+    }
+
+    row.appendChild(n);
+    row.appendChild(v);
+    el.appendChild(row);
+  });
+}
+
+/* ─────────────────────────────────────────
+   REVEAL MORE ON WRONG GUESS
+   ───────────────────────────────────────── */
+function revealMore() {
+  if (!loadedImg) return;
+  const wrongCount = G.guesses.filter(g => !g.correct).length;
+  // Scale smoothly from original down to ~1.5x on guess 5
+  const newScale = Math.max(1.5, G.crop.scale - (wrongCount * (G.crop.scale - 1.5) / 5));
+  drawCrop(loadedImg, G.crop.ox, G.crop.oy, newScale);
+}
+
+/* ─────────────────────────────────────────
+   GUESS LOGIC
+   ───────────────────────────────────────── */
+function normalise(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function checkGuess(text) {
+  const ng = normalise(text);
+  const na = normalise(G.album.artist);
+  const nb = normalise(G.album.album);
+  // Match full album, full artist, or meaningful substring
+  return ng === na
+      || ng === nb
+      || (nb.includes(ng) && ng.length > 3)
+      || (na.includes(ng) && ng.length > 4);
+}
+
+function submitGuess(text) {
+  if (G.done || !text.trim()) return;
+
+  const correct = checkGuess(text.trim());
+  G.guesses.push({ text: text.trim(), correct, skip: false });
+
+  addHistoryRow(text.trim(), correct, false);
+  renderTicks();
+  renderClues();
+
+  if (!correct) revealMore();
+
+  if (correct) {
+    G.done = true; G.won = true;
+    endGame(true);
+  } else if (G.guesses.length >= 6) {
+    G.done = true;
+    endGame(false);
+  }
+
+  document.getElementById('guessInput').value = '';
+  hideAC();
+}
+
+function skipGuess() {
+  if (G.done) return;
+  G.guesses.push({ text: '—', correct: false, skip: true });
+  addHistoryRow('—', false, true);
+  renderTicks();
+  renderClues();
+  revealMore();
+  if (G.guesses.length >= 6) { G.done = true; endGame(false); }
+}
+
+function addHistoryRow(text, correct, skip) {
+  const el  = document.getElementById('history');
+  const row = document.createElement('div');
+  row.className = 'h-row';
+  row.innerHTML = `
+    <span class="h-n">${G.guesses.length}.</span>
+    <span class="h-t${skip ? ' sk' : ''}">${text}</span>
+    <span class="h-m ${correct ? 'ok' : 'no'}">${correct ? '✓' : skip ? '–' : '✗'}</span>
+  `;
+  el.appendChild(row);
+}
+
+/* ─────────────────────────────────────────
+   END GAME
+   ───────────────────────────────────────── */
+function endGame(won) {
+  // Show full cover if lost
+  if (!won && loadedImg) drawFull(loadedImg);
+
+  document.getElementById('resHed').textContent    = won ? 'got it.' : 'not this time.';
+  document.getElementById('ansArtist').textContent = G.album.artist;
+  document.getElementById('ansAlbum').textContent  = G.album.album;
+  document.getElementById('ansYear').textContent   = G.album.year;
+
+  if (loadedImg) {
+    document.getElementById('ansThumb').src = loadedImg.src;
+  }
+
+  document.getElementById('result').classList.add('show');
+  document.getElementById('guessInput').disabled = true;
+  document.getElementById('subBtn').disabled     = true;
+  document.getElementById('skipBtn').disabled    = true;
+
+  saveStreak(won);
+}
+
+/* ─────────────────────────────────────────
+   STREAK (localStorage)
+   ───────────────────────────────────────── */
+function saveStreak(won) {
+  const last    = parseInt(localStorage.getItem('gta_lastday') || '-1');
+  const today   = G.day;
+  let   streak  = parseInt(localStorage.getItem('gta_streak')  || '0');
+
+  if (won) {
+    if      (last === today - 1) streak++;
+    else if (last !== today)     streak = 1;
+  } else {
+    if (last !== today) streak = 0;
+  }
+
+  localStorage.setItem('gta_streak',  streak);
+  localStorage.setItem('gta_lastday', today);
+}
+
+/* ─────────────────────────────────────────
+   COPY RESULT
+   ───────────────────────────────────────── */
+document.getElementById('copyBtn').addEventListener('click', () => {
+  const squares = G.guesses.map(g => g.correct ? '■' : g.skip ? '□' : '▪').join(' ');
+  const text = `guess the album. #${G.day}\n${G.won ? `${G.guesses.length}/6` : 'x/6'}\n${squares}`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copyBtn');
+    btn.textContent = 'copied.';
+    setTimeout(() => btn.textContent = 'copy result', 1500);
+  });
+});
+
+/* ─────────────────────────────────────────
+   AUTOCOMPLETE
+   ───────────────────────────────────────── */
+const allNames = ALBUMS.flatMap(a => [
+  { label: a.album,  sub: a.artist, val: a.album  },
+  { label: a.artist, sub: a.album,  val: a.artist },
+]);
+
+document.getElementById('guessInput').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase();
+  if (q.length < 2) { hideAC(); return; }
+  const matches = allNames
+    .filter(n => n.label.toLowerCase().includes(q) || n.sub.toLowerCase().includes(q))
+    .slice(0, 6);
+  if (!matches.length) { hideAC(); return; }
+  showAC(matches);
+});
+
+function showAC(items) {
+  const drop = document.getElementById('acDrop');
+  drop.innerHTML = '';
+  items.forEach(item => {
+    const d = document.createElement('div');
+    d.className  = 'ac-item';
+    d.dataset.v  = item.val;
+    d.innerHTML  = `<div>${item.label}</div><div class="ac-sub">${item.sub}</div>`;
+    d.addEventListener('mousedown', () => {
+      document.getElementById('guessInput').value = item.val;
+      hideAC();
+      submitGuess(item.val);
+    });
+    drop.appendChild(d);
+  });
+  drop.style.display = 'block';
+}
+
+function hideAC() {
+  document.getElementById('acDrop').style.display = 'none';
+}
+
+function moveAC(dir) {
+  const items = document.querySelectorAll('.ac-item');
+  if (!items.length) return;
+  let cur = Array.from(items).findIndex(i => i.classList.contains('hi'));
+  if (cur >= 0) items[cur].classList.remove('hi');
+  cur = (cur + dir + items.length) % items.length;
+  items[cur].classList.add('hi');
+  document.getElementById('guessInput').value = items[cur].dataset.v;
+}
+
+document.getElementById('guessInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    const active = document.querySelector('.ac-item.hi');
+    if (active) { document.getElementById('guessInput').value = active.dataset.v; hideAC(); }
+    else submitGuess(document.getElementById('guessInput').value);
+  }
+  if (e.key === 'ArrowDown')  { moveAC(1);  e.preventDefault(); }
+  if (e.key === 'ArrowUp')    { moveAC(-1); e.preventDefault(); }
+  if (e.key === 'Escape')       hideAC();
+});
+
+document.getElementById('subBtn').addEventListener('click', () =>
+  submitGuess(document.getElementById('guessInput').value)
+);
+document.getElementById('skipBtn').addEventListener('click', skipGuess);
+
+/* ─────────────────────────────────────────
+   COUNTDOWN
+   ───────────────────────────────────────── */
+function startCountdown() {
+  function update() {
+    const now = new Date(), midnight = new Date(now);
+    midnight.setHours(24, 0, 0, 0);
+    const diff = midnight - now;
+    const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+    const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+    const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+    document.getElementById('countdown').textContent = `${h}:${m}:${s}`;
+  }
+  update();
+  setInterval(update, 1000);
+}
+
+/* ── go ── */
+init();
+</script>
+</body>
+</html>
