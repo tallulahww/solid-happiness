@@ -1,210 +1,306 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Guess The Album</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>guess the album.</title>
 
 <style>
-
-body{
-font-family:Arial,sans-serif; 
-background:#111;
-color:white;
-display:flex;
-justify-content:center;
-align-items:center;
-height:100vh;
-margin:0;
+body {
+  margin: 0;
+  background: #f7f7f5;
+  color: #111;
+  font-family: "Courier New", monospace;
 }
 
-.container{
-text-align:center;
-max-width:600px;
-padding:20px;
+.page {
+  max-width: 980px;
+  margin: 70px auto;
+  padding: 0 28px;
 }
 
-img{
-width:300px;
-height:300px;
-object-fit:cover;
-border-radius:10px;
-box-shadow:0 0 20px rgba(0,0,0,.5);
+h1 {
+  font-size: 26px;
+  letter-spacing: 10px;
+  font-weight: 700;
+  margin-bottom: 80px;
 }
 
-input{
-margin-top:20px;
-padding:12px;
-width:300px;
-font-size:16px;
+.cover-wrap {
+  width: min(80vw, 780px);
+  aspect-ratio: 1 / 1;
+  border: 2px solid #111;
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-button{
-padding:12px 20px;
-margin:10px;
-font-size:16px;
-cursor:pointer;
+canvas {
+  width: 100%;
+  height: 100%;
+  image-rendering: auto;
 }
 
-#result{
-margin-top:20px;
-font-size:20px;
+.status {
+  margin-top: 45px;
+  color: #999;
+  font-style: italic;
+  font-weight: bold;
+  letter-spacing: 5px;
 }
 
+.controls {
+  margin-top: 35px;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+input, button {
+  font-family: "Courier New", monospace;
+  font-size: 16px;
+  padding: 12px 14px;
+  border: 1px solid #111;
+  background: #f7f7f5;
+}
+
+input {
+  width: min(500px, 80vw);
+}
+
+button {
+  cursor: pointer;
+}
+
+.result {
+  margin-top: 25px;
+  font-style: italic;
+  letter-spacing: 2px;
+}
+
+.clue {
+  margin-top: 20px;
+  color: #555;
+  letter-spacing: 2px;
+}
 </style>
-
 </head>
 
 <body>
+<div class="page">
+  <h1>guess the album.</h1>
 
-<div class="container">
+  <div class="cover-wrap">
+    <canvas id="canvas" width="800" height="800"></canvas>
+  </div>
 
-<h1>Guess The Album</h1>
+  <div id="status" class="status">loading cover art...</div>
 
-<img id="cover" src="">
+  <div class="controls">
+    <input id="guess" placeholder="type album title..." />
+    <button onclick="checkGuess()">guess</button>
+    <button onclick="newRound()">new one</button>
+    <button onclick="showClue()">clue</button>
+  </div>
 
-<br>
-
-<input id="guess" placeholder="Album name">
-
-<br>
-
-<button onclick="checkGuess()">Guess</button>
-
-<div id="result"></div>
-
+  <div id="clue" class="clue"></div>
+  <div id="result" class="result"></div>
 </div>
 
 <script>
-
 const albums = [
-
-{artist:"Frank Ocean",album:"Blonde"},
-{artist:"Radiohead",album:"OK Computer"},
-{artist:"Fleetwood Mac",album:"Rumours"},
-{artist:"The Beatles",album:"Abbey Road"},
-{artist:"Taylor Swift",album:"folklore"},
-{artist:"Mitski",album:"Puberty 2"},
-{artist:"Kendrick Lamar",album:"To Pimp a Butterfly"},
-{artist:"Phoebe Bridgers",album:"Punisher"},
-{artist:"The Strokes",album:"Is This It"},
-{artist:"Amy Winehouse",album:"Back To Black"}
-
+{artist:"The Beatles",album:"Abbey Road",year:1969},
+{artist:"The Beatles",album:"Revolver",year:1966},
+{artist:"The Beach Boys",album:"Pet Sounds",year:1966},
+{artist:"Marvin Gaye",album:"What's Going On",year:1971},
+{artist:"Stevie Wonder",album:"Songs in the Key of Life",year:1976},
+{artist:"Joni Mitchell",album:"Blue",year:1971},
+{artist:"Fleetwood Mac",album:"Rumours",year:1977},
+{artist:"Pink Floyd",album:"The Dark Side of the Moon",year:1973},
+{artist:"David Bowie",album:"The Rise and Fall of Ziggy Stardust and the Spiders from Mars",year:1972},
+{artist:"Prince",album:"Purple Rain",year:1984},
+{artist:"Michael Jackson",album:"Thriller",year:1982},
+{artist:"Nirvana",album:"Nevermind",year:1991},
+{artist:"Radiohead",album:"OK Computer",year:1997},
+{artist:"Radiohead",album:"Kid A",year:2000},
+{artist:"Lauryn Hill",album:"The Miseducation of Lauryn Hill",year:1998},
+{artist:"Kendrick Lamar",album:"good kid, m.A.A.d city",year:2012},
+{artist:"Kendrick Lamar",album:"To Pimp a Butterfly",year:2015},
+{artist:"Frank Ocean",album:"Blonde",year:2016},
+{artist:"Frank Ocean",album:"channel ORANGE",year:2012},
+{artist:"Amy Winehouse",album:"Back to Black",year:2006},
+{artist:"Beyoncé",album:"Lemonade",year:2016},
+{artist:"Kanye West",album:"My Beautiful Dark Twisted Fantasy",year:2010},
+{artist:"OutKast",album:"Aquemini",year:1998},
+{artist:"Nas",album:"Illmatic",year:1994},
+{artist:"Wu-Tang Clan",album:"Enter the Wu-Tang (36 Chambers)",year:1993},
+{artist:"A Tribe Called Quest",album:"The Low End Theory",year:1991},
+{artist:"The Clash",album:"London Calling",year:1979},
+{artist:"The Velvet Underground",album:"The Velvet Underground & Nico",year:1967},
+{artist:"Patti Smith",album:"Horses",year:1975},
+{artist:"Talking Heads",album:"Remain in Light",year:1980},
+{artist:"Joy Division",album:"Unknown Pleasures",year:1979},
+{artist:"The Smiths",album:"The Queen Is Dead",year:1986},
+{artist:"My Bloody Valentine",album:"Loveless",year:1991},
+{artist:"Pixies",album:"Doolittle",year:1989},
+{artist:"The Strokes",album:"Is This It",year:2001},
+{artist:"Arcade Fire",album:"Funeral",year:2004},
+{artist:"Sufjan Stevens",album:"Illinois",year:2005},
+{artist:"Bon Iver",album:"For Emma, Forever Ago",year:2007},
+{artist:"Phoebe Bridgers",album:"Punisher",year:2020},
+{artist:"Mitski",album:"Puberty 2",year:2016},
+{artist:"Fiona Apple",album:"Fetch the Bolt Cutters",year:2020},
+{artist:"Kate Bush",album:"Hounds of Love",year:1985},
+{artist:"Cocteau Twins",album:"Heaven or Las Vegas",year:1990},
+{artist:"Massive Attack",album:"Mezzanine",year:1998},
+{artist:"Portishead",album:"Dummy",year:1994},
+{artist:"Daft Punk",album:"Discovery",year:2001},
+{artist:"LCD Soundsystem",album:"Sound of Silver",year:2007},
+{artist:"The Cure",album:"Disintegration",year:1989},
+{artist:"Oasis",album:"Definitely Maybe",year:1994},
+{artist:"Blur",album:"Parklife",year:1994},
+{artist:"Pulp",album:"Different Class",year:1995},
+{artist:"The xx",album:"xx",year:2009},
+{artist:"Beach House",album:"Bloom",year:2012},
+{artist:"Elliott Smith",album:"Either/Or",year:1997},
+{artist:"Jeff Buckley",album:"Grace",year:1994},
+{artist:"Nick Drake",album:"Pink Moon",year:1972},
+{artist:"Bruce Springsteen",album:"Born to Run",year:1975},
+{artist:"Carole King",album:"Tapestry",year:1971},
+{artist:"Aretha Franklin",album:"I Never Loved a Man the Way I Love You",year:1967},
+{artist:"Sade",album:"Love Deluxe",year:1992},
+{artist:"D'Angelo",album:"Voodoo",year:2000},
+{artist:"Miles Davis",album:"Kind of Blue",year:1959},
+{artist:"Björk",album:"Homogenic",year:1997},
+{artist:"PJ Harvey",album:"Stories From the City, Stories From the Sea",year:2000},
+{artist:"R.E.M.",album:"Automatic for the People",year:1992},
+{artist:"Slowdive",album:"Souvlaki",year:1993},
+{artist:"Japanese Breakfast",album:"Jubilee",year:2021},
+{artist:"Taylor Swift",album:"folklore",year:2020},
+{artist:"Lorde",album:"Melodrama",year:2017},
+{artist:"Charli XCX",album:"BRAT",year:2024},
+{artist:"Tyler, The Creator",album:"IGOR",year:2019},
+{artist:"Rosalía",album:"MOTOMAMI",year:2022},
+{artist:"Burial",album:"Untrue",year:2007},
+{artist:"FKA twigs",album:"MAGDALENE",year:2019},
+{artist:"Neutral Milk Hotel",album:"In the Aeroplane Over the Sea",year:1998}
 ];
 
-let currentAlbum;
+let currentAlbum = null;
+let clueCount = 0;
 
-async function getCover(artist,album){
-
-const query = encodeURIComponent(
-artist + " " + album
-);
-
-const response = await fetch(
-`https://itunes.apple.com/search?term=${query}&entity=album&limit=1`
-);
-
-const data = await response.json();
-
-if(data.results.length===0){
-
-return null;
-
+function clean(text) {
+  return text.toLowerCase().replace(/[^a-z0-9]/g, "");
 }
 
-return data.results[0]
-.artworkUrl100
-.replace(
-"100x100bb",
-"1000x1000bb"
-);
+async function fetchCoverArt(artist, album) {
+  const query = encodeURIComponent(`${artist} ${album}`);
+  const response = await fetch(`https://itunes.apple.com/search?term=${query}&entity=album&limit=5`);
+  const data = await response.json();
 
+  if (!data.results || !data.results.length) return null;
+
+  const best = data.results[0];
+  return best.artworkUrl100.replace("100x100bb", "1000x1000bb");
 }
 
-async function loadAlbum(){
+function drawTinyCrop(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
 
-document.getElementById(
-"result"
-).innerText="";
+    img.onload = () => {
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
 
-document.getElementById(
-"guess"
-).value="";
+      const cropSize = Math.floor(img.width / 8); 
+      const x = Math.floor(Math.random() * (img.width - cropSize));
+      const y = Math.floor(Math.random() * (img.height - cropSize));
 
-currentAlbum =
-albums[
-Math.floor(
-Math.random()*albums.length
-)
-];
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.imageSmoothingEnabled = true;
 
-const cover =
-await getCover(
-currentAlbum.artist,
-currentAlbum.album
-);
+      ctx.drawImage(
+        img,
+        x,
+        y,
+        cropSize,
+        cropSize,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
 
-if(cover){
+      resolve();
+    };
 
-document.getElementById(
-"cover"
-).src=cover;
-
-}else{
-
-document.getElementById(
-"result"
-).innerText=
-"couldn't load cover";
-
+    img.onerror = reject;
+    img.src = url;
+  });
 }
 
+async function newRound() {
+  document.getElementById("status").textContent = "loading cover art...";
+  document.getElementById("result").textContent = "";
+  document.getElementById("clue").textContent = "";
+  document.getElementById("guess").value = "";
+  clueCount = 0;
+
+  currentAlbum = albums[Math.floor(Math.random() * albums.length)];
+
+  try {
+    const cover = await fetchCoverArt(currentAlbum.artist, currentAlbum.album);
+
+    if (!cover) throw new Error("No cover found");
+
+    await drawTinyCrop(cover);
+
+    document.getElementById("status").textContent =
+      "tiny piece of the cover. guess the album.";
+  } catch (error) {
+    console.error(error);
+    document.getElementById("status").textContent =
+      "cover art unavailable today. try another.";
+  }
 }
 
-function checkGuess(){
+function checkGuess() {
+  const guess = clean(document.getElementById("guess").value);
+  const answer = clean(currentAlbum.album);
 
-const guess =
-document.getElementById(
-"guess"
-).value
-.trim()
-.toLowerCase();
+  if (!guess) return;
 
-if(
-guess===
-currentAlbum.album
-.toLowerCase()
-){
-
-document.getElementById(
-"result"
-).innerText=
-"correct ✓";
-
-setTimeout(
-loadAlbum,
-1500
-);
-
-}else{
-
-document.getElementById(
-"result"
-).innerText=
-`wrong — ${currentAlbum.album}`;
-
-setTimeout(
-loadAlbum,
-2000
-);
-
+  if (guess === answer) {
+    document.getElementById("result").textContent =
+      `correct. ${currentAlbum.album} — ${currentAlbum.artist}`;
+  } else {
+    document.getElementById("result").textContent =
+      "not quite. try again.";
+  }
 }
 
+function showClue() {
+  clueCount++;
+
+  if (clueCount === 1) {
+    document.getElementById("clue").textContent =
+      `artist: ${currentAlbum.artist}`;
+  } else if (clueCount === 2) {
+    document.getElementById("clue").textContent =
+      `year: ${currentAlbum.year}`;
+  } else {
+    document.getElementById("clue").textContent =
+      `answer: ${currentAlbum.album}`;
+  }
 }
 
-loadAlbum();
+document.getElementById("guess").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") checkGuess();
+});
 
+newRound();
 </script>
-
 </body>
-
 </html>
