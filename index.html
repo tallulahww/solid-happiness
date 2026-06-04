@@ -429,7 +429,7 @@ const ALBUMS=[
   {"artist":"St Vincent","album":"St Vincent","year":2014,"clues":["art rock","released 2014","the artist seated on a throne in a stark silver and white set"]},
   {"artist":"St Vincent","album":"Masseduction","year":2017,"clues":["art pop","released 2017","a close-up of tight pink latex against a graphic background"]},
   {"artist":"LCD Soundsystem","album":"Sound of Silver","year":2007,"clues":["dance-punk / electronic","released 2007","pure silver \u2014 an entirely uniform metallic surface"]},
-  {"artist":"Wilco","album":"Yankee Hotel Foxtrot","year":2002,"clues":["alt-country / rock","released 2002","two radio towers against a clear blue sky in Chicago"]},
+  {"artist":"Wilco","album":"Yankee Hotel Foxtrot","year":2002,"clues":["alt-country / art rock","released 2002","two circular brutalist tower blocks against a pale blue sky"]},
   {"artist":"Wilco","album":"Summerteeth","year":1999,"clues":["alt-country / power pop","released 1999","a soft illustration of flowers and summer imagery in pastel tones"]},
   {"artist":"Wilco","album":"A Ghost Is Born","year":2004,"clues":["indie rock","released 2004","a pale monochrome photograph of a blurry figure in daylight"]},
   {"artist":"Neutral Milk Hotel","album":"In the Aeroplane Over the Sea","year":1998,"clues":["indie folk","released 1998","a hand-painted illustration of a woman in flowing robes in sepia tones"]},
@@ -683,7 +683,7 @@ const ALBUMS=[
 
 async function fetchCoverArt(artist,album){
   const query=encodeURIComponent(artist+' '+album);
-  const url='https://itunes.apple.com/search?term='+query+'&entity=album&limit=8';
+  const url='https://itunes.apple.com/search?term='+query+'&entity=album&limit=10';
   try{
     const res=await fetch(url);
     if(!res.ok)return null;
@@ -694,9 +694,15 @@ async function fetchCoverArt(artist,album){
     let best=null,bestScore=-1;
     for(const r of data.results){
       const ra=norm(r.artistName||''),rb=norm(r.collectionName||'');
+      // Artist must match — if it doesn't, skip entirely
+      const artistMatch=ra===na||(ra.includes(na)&&na.length>3)||(na.includes(ra)&&ra.length>3);
+      if(!artistMatch)continue;
+      // Score on album match
       let score=0;
-      if(ra===na)score+=2;else if(ra.includes(na)||na.includes(ra))score+=1;
-      if(rb===nb)score+=2;else if(rb.includes(nb)||nb.includes(rb))score+=1;
+      if(ra===na)score+=4;else score+=1;
+      if(rb===nb)score+=4;
+      else if(rb.includes(nb)&&nb.length>3)score+=2;
+      else if(nb.includes(rb)&&rb.length>3)score+=1;
       if(score>bestScore){bestScore=score;best=r;}
     }
     if(!best||!best.artworkUrl100)return null;
@@ -846,6 +852,94 @@ function endGame(won){
   document.getElementById('subBtn').disabled=true;
   document.getElementById('skipBtn').disabled=true;
   saveStreak(won);
+  if(won)burstStars();
+}
+
+function burstStars(){
+  const canvas=document.createElement('canvas');
+  canvas.style.cssText='position:fixed;inset:0;width:100%;height:100%;pointer-events:none;z-index:9999;';
+  canvas.width=window.innerWidth;
+  canvas.height=window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx=canvas.getContext('2d');
+
+  function drawHandStar(ctx,x,y,size,rot,seed){
+    const pts=5;
+    const rng=(n)=>{let s=(seed*9301+n*49297)%233280;return s/233280;};
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.rotate(rot);
+    ctx.beginPath();
+    const coords=[];
+    for(let i=0;i<pts*2;i++){
+      const outer=i%2===0;
+      const baseR=outer?size*(0.82+rng(i)*0.22):size*(0.14+rng(i+7)*0.10);
+      const baseA=(Math.PI/pts)*i-Math.PI/2;
+      const wobbleA=baseA+(outer?(rng(i+3)-0.5)*0.22:(rng(i+5)-0.5)*0.35);
+      const wobbleR=baseR*(0.86+rng(i+11)*0.28);
+      coords.push([Math.cos(wobbleA)*wobbleR,Math.sin(wobbleA)*wobbleR]);
+    }
+    ctx.moveTo(coords[0][0],coords[0][1]);
+    for(let i=1;i<=coords.length;i++){
+      const [x1,y1]=coords[i%coords.length];
+      const [px,py]=coords[i-1];
+      const mx=(px+x1)/2+(rng(i*17)-0.5)*size*0.07;
+      const my=(py+y1)/2+(rng(i*13)-0.5)*size*0.07;
+      ctx.quadraticCurveTo(mx,my,x1,y1);
+    }
+    ctx.closePath();
+    ctx.restore();
+  }
+
+  const stars=[];
+  const totalStars=34;
+
+  // spawn stars staggered over time — rain across full width from above
+  for(let i=0;i<totalStars;i++){
+    stars.push({
+      x: Math.random()*canvas.width,
+      y: -40 - Math.random()*canvas.height*0.5, // start above screen, staggered heights
+      vx: (Math.random()-0.5)*0.8,
+      vy: 2.5+Math.random()*3.5,
+      size: 28+Math.random()*44,
+      alpha: 0,
+      alphaDelay: i*3, // stagger appearance
+      rot: Math.random()*Math.PI*2,
+      rotSpeed: (Math.random()-0.5)*0.03,
+      seed: Math.floor(Math.random()*9999),
+    });
+  }
+
+  let frame=0;
+  function animate(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    let alive=false;
+    for(const s of stars){
+      if(frame < s.alphaDelay) continue;
+      // fade in quickly
+      s.alpha=Math.min(1,(frame-s.alphaDelay)*0.08);
+      s.x+=s.vx;
+      s.y+=s.vy;
+      s.rot+=s.rotSpeed;
+      // fade out once below screen
+      if(s.y > canvas.height+60) s.alpha=0;
+      if(s.alpha<=0 && frame > s.alphaDelay+10) continue;
+      alive=true;
+      ctx.save();
+      ctx.globalAlpha=Math.max(0,s.alpha);
+      ctx.strokeStyle='#000';
+      ctx.lineWidth=2.2;
+      ctx.lineJoin='round';
+      ctx.lineCap='round';
+      drawHandStar(ctx,s.x,s.y,s.size,s.rot,s.seed);
+      ctx.stroke();
+      ctx.restore();
+    }
+    frame++;
+    if(frame<400)requestAnimationFrame(animate);
+    else canvas.remove();
+  }
+  animate();
 }
 
 function saveStreak(won){
