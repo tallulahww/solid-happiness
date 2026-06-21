@@ -1280,8 +1280,8 @@ let G={},loadedImg=null;
 async function init(){
   const day=getDayIdx();
   const{album,idx}=getDailyAlbum();
-  const crop=getCropParams(idx,day);
-  G={album,idx,day,crop,guesses:[],done:false,won:false};
+  // Don't set a crop yet — wait for smart crop analysis after image loads
+  G={album,idx,day,crop:null,guesses:[],done:false,won:false};
   renderTicks();renderClues();startCountdown();
   document.getElementById('loadingMsg').style.display='flex';
   const url=await fetchCoverArt(album.artist,album.album);
@@ -1290,7 +1290,7 @@ async function init(){
     const img=new Image();img.crossOrigin='anonymous';
     img.onload=()=>{
       loadedImg=img;
-      // Smart crop: find most active non-text region, consistent per day
+      // Smart crop runs once, result stored — consistent per day for all users
       const smartCrop=findBestCrop(img,G.day,G.idx);
       G.crop=smartCrop;
       drawCrop(loadedImg,G.crop.ox,G.crop.oy,G.crop.scale);
