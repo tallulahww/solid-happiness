@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>what the album? — contact</title>
+<title> <3 what the album? — contact <3 </title>
 <link rel="preconnect" href="https://fonts.googleapis.com"/>
 <link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet"/>
 <style>
@@ -33,56 +33,32 @@ textarea{min-height:140px;}
 <body>
 <div class="hed"><a href="index.html">← what the album?</a></div>
 <div class="wrap">
-  <p class="intro"> tell us what u think <3 .</p>
-  <form class="form" id="contactForm" action="https://formspree.io/f/tallulahawebb@gmail.com" method="POST">
+  <p class="intro">say hi, tell me what you think, suggest an album, report a bug — whatever you like.</p>
+  <div data-fs-success style="display:none;" class="success" id="success">got it — thanks for reaching out! i'll get back to you soon.</div>
+  <div data-fs-error style="display:none;font-size:11px;color:#999;font-style:italic;margin-bottom:0.5rem;"></div>
+  <form class="form" id="contactForm">
     <div class="field">
       <label for="name">name</label>
-      <input type="text" id="name" name="name" placeholder="your name..." autocomplete="off"/>
+      <input type="text" id="name" name="name" placeholder="your name..." autocomplete="off" data-fs-field/>
     </div>
     <div class="field">
       <label for="email">email</label>
-      <input type="email" id="email" name="email" placeholder="your email..." required autocomplete="off"/>
+      <input type="email" id="email" name="email" placeholder="your email..." required autocomplete="off" data-fs-field/>
+      <span data-fs-error="email" style="font-size:11px;color:#999;font-style:italic;"></span>
     </div>
     <div class="field">
       <label for="message">message</label>
-      <textarea id="message" name="message" placeholder="what's on your mind..." required></textarea>
+      <textarea id="message" name="message" placeholder="what's on your mind..." required data-fs-field></textarea>
+      <span data-fs-error="message" style="font-size:11px;color:#999;font-style:italic;"></span>
     </div>
-    <input type="hidden" name="_replyto" value="tallulahawebb@gmail.com"/>
-    <input type="hidden" name="_subject" value="what the album? — message"/>
-    <button type="submit" class="sub-btn" id="subBtn">send</button>
+    <button type="submit" class="sub-btn" data-fs-submit-btn>send</button>
   </form>
-  <div class="success" id="success">got it — thanks for reaching out! i'll get back to you soon.</div>
 </div>
 
 <script>
-const form = document.getElementById('contactForm');
-const btn = document.getElementById('subBtn');
-const success = document.getElementById('success');
-
-form.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  btn.disabled = true;
-  btn.textContent = 'sending...';
-  try {
-    const res = await fetch('https://formspree.io/f/tallulahawebb@gmail.com', {
-      method: 'POST',
-      headers: {'Accept': 'application/json'},
-      body: new FormData(form)
-    });
-    if (res.ok) {
-      form.style.display = 'none';
-      success.style.display = 'block';
-    } else {
-      btn.disabled = false;
-      btn.textContent = 'send';
-      alert("something went wrong — try emailing tallulahawebb@gmail.com directly.");
-    }
-  } catch(e) {
-    btn.disabled = false;
-    btn.textContent = 'send';
-    alert("something went wrong — try emailing tallulahawebb@gmail.com directly.");
-  }
-});
+  window.formspree = window.formspree || function () { (formspree.q = formspree.q || []).push(arguments); };
+  formspree('initForm', { formElement: '#contactForm', formId: 'xeebjwpp' });
 </script>
+<script src="https://unpkg.com/@formspree/ajax@1" defer></script>
 </body>
 </html>
