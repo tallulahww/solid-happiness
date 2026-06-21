@@ -1173,6 +1173,11 @@ function getCropParams(ai,di){
 }
 
 function findBestCrop(img, dayIdx, albumIdx){
+  // Check cache first — same crop for everyone, every load, all day
+  const cacheKey='wta_crop_'+dayIdx+'_'+albumIdx;
+  const cached=localStorage.getItem(cacheKey);
+  if(cached){try{return JSON.parse(cached);}catch(e){}}
+
   // Draw full image to an offscreen canvas and analyse tiles
   const SIZE=200; // analyse at 200x200 for speed
   const oc=document.createElement('canvas');oc.width=SIZE;oc.height=SIZE;
@@ -1243,17 +1248,19 @@ function findBestCrop(img, dayIdx, albumIdx){
   // Sort by score descending
   scores.sort((a,b)=>b.score-a.score);
 
-  // Pick from tiles ranked 5-9 (less obvious regions) using day seed — consistent per day
+  // Pick from tiles ranked 3-5 using day seed — consistent per day
   const rng2=seededRng(dayIdx*137+albumIdx*31);
   const topN=scores.length;
-  const pickFrom=scores.slice(5,Math.min(10,topN));
+  const pickFrom=scores.slice(3,Math.min(6,topN));
   const pickIdx=Math.floor(rng2()*pickFrom.length);
   const best=pickFrom[pickIdx];
   // Convert tile position to ox/oy offset (0..1 range, where 1 = max offset)
   const maxOff=1-CROP_FRAC;
   const ox2=Math.min((best.tx/GRID)/maxOff,1)*maxOff;
   const oy2=Math.min((best.ty/GRID)/maxOff,1)*maxOff;
-  return{ox:ox2,oy:oy2,scale:6.5};
+  const result={ox:ox2,oy:oy2,scale:6.5};
+  try{localStorage.setItem(cacheKey,JSON.stringify(result));}catch(e){}
+  return result;
 }
 
 function drawCrop(img,ox,oy,scale){
