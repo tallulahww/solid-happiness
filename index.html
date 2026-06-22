@@ -180,7 +180,7 @@ const ALBUMS = [
   {"artist":"Mitski","album":"Laurel Hell","year":2022,"clues":["synth pop","released 2022","Working for the knife"]},
   {"artist":"Mitski","album":"My Name Is Going to Follow Me Wherever I Go","year":2026,"clues":["indie rock / art pop","released 2026","My love is a needle and thread"]},
   // SOCCER MOMMY
-  {"artist":"Soccer Mommy","album":"Color Theory","year":2020,"clues":["indie pop","released 2020","I feel like I've been running for so long"]},
+  {"artist":"Clairo","album":"Immunity","year":2019,"clues":["bedroom pop","released 2019","Softly"]},
   {"artist":"Soccer Mommy","album":"Clean","year":2018,"clues":["indie pop","released 2018","He said I make him feel better"]},
   // SNAIL MAIL
   {"artist":"Snail Mail","album":"Lush","year":2018,"clues":["indie rock","released 2018","Is there any better feeling than coming clean?"]},
@@ -692,7 +692,7 @@ const ALBUMS = [
   // THE XX
   {"artist":"The xx","album":"xx","year":2009,"clues":["indie pop / dream pop","released 2009","Crystalised"]},
   {"artist":"The xx","album":"Coexist","year":2012,"clues":["indie pop","released 2012","Angels"]},
-  {"artist":"xx","album":"I See You","year":2017,"clues":["indie pop / electronic","released 2017","On hold"]},
+  {"artist":"The xx","album":"I See You","year":2017,"clues":["indie pop / electronic","released 2017","On hold"]},
   // ELBOW
   {"artist":"Elbow","album":"The Seldom Seen Kid","year":2008,"clues":["indie rock / art rock","released 2008","One day like this"]},
   // ALT-J
@@ -735,7 +735,7 @@ const ALBUMS = [
   // SHOW ME THE BODY
   {"artist":"Show Me the Body","album":"Dog Whistle","year":2019,"clues":["hardcore / post-punk","released 2019","Rude boy"]},
   // BIKINI KILL
-  {"artist":"Bikini Kill","album":"Bikini Kill","year":1992,"clues":["riot grrrl / punk","released 1992","Double dare ya"]},
+  {"artist":"Bikini Kill","album":"Revolution Girl Style Now","year":1991,"clues":["riot grrrl / punk","released 1991","Suck my left one"]},
   {"artist":"Bikini Kill","album":"Pussy Whipped","year":1993,"clues":["riot grrrl / punk","released 1993","Rebel girl, that girl thinks she's the queen of the neighbourhood"]},
   {"artist":"Bikini Kill","album":"Reject All American","year":1996,"clues":["riot grrrl / punk","released 1996","Don't need you to say that I'm pretty"]},
   {"artist":"Bikini Kill","album":"Revolution Girl Style Now","year":1991,"clues":["riot grrrl / punk","released 1991","Suck my left one"]},
@@ -1138,28 +1138,74 @@ function getDailyAlbum(){
 
 // ── Cover art ──────────────────────────────────────────────────────────────
 async function fetchCoverArt(artist,album){
-  const query=encodeURIComponent(artist+' '+album);
-  const url='https://itunes.apple.com/search?term='+query+'&entity=album&limit=10';
-  try{
-    const res=await fetch(url);if(!res.ok)return null;
-    const data=await res.json();if(!data.results||!data.results.length)return null;
-    const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
-    const na=norm(artist),nb=norm(album);
-    let best=null,bestScore=-1;
-    for(const r of data.results){
-      const ra=norm(r.artistName||''),rb=norm(r.collectionName||'');
-      const artistMatch=ra===na||(ra.includes(na)&&na.length>3)||(na.includes(ra)&&ra.length>3);
-      if(!artistMatch)continue;
-      let score=0;
-      if(ra===na)score+=4;else score+=1;
-      if(rb===nb)score+=4;
-      else if(rb.includes(nb)&&nb.length>3)score+=2;
-      else if(nb.includes(rb)&&rb.length>3)score+=1;
-      if(score>bestScore){bestScore=score;best=r;}
-    }
-    if(!best||!best.artworkUrl100)return null;
-    return best.artworkUrl100.replace('100x100bb','600x600bb');
-  }catch(e){return null;}
+  // Hardcoded overrides for albums iTunes gets wrong
+  const normKey=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
+  // Use iTunes collection ID lookup for known-tricky albums — guaranteed correct artwork
+  const ARTWORK_OVERRIDES={
+    'phoebebridgerspunisher':'https://is1-ssl.mzstatic.com/image/thumb/Music115/v4/39/91/4f/39914f60-e9aa-4ae9-3962-44b0a5e5d570/656605150062.jpg/600x600bb.jpg',
+  };
+  const ITUNES_IDS={
+    'clairoimmunity':1893175128,
+    'oneohtrixpointneverrplusseven':673970570,
+    'bikinikillrevolutiongirlstylenow':1039728804,
+    'elviscostellothisyearsmodel':1585423236,
+    'blackcountrynewroadforthefirsttime':1533822061,
+    'carolinepolachekdesireiwanttoturnintoyou':1669095245,
+    'sharonvanettentramp':493296493,
+    'kendricklamardamn':1440881047,
+    'jonathanrichmanijonathan':1443416614,
+  };
+  const overrideKey=normKey(artist)+normKey(album);
+  if(ARTWORK_OVERRIDES[overrideKey])return ARTWORK_OVERRIDES[overrideKey];
+  if(ITUNES_IDS[overrideKey]){
+    try{
+      const r=await fetch('https://itunes.apple.com/lookup?id='+ITUNES_IDS[overrideKey]);
+      const d=await r.json();
+      const item=d.results&&d.results.find(x=>x.wrapperType==='collection'&&x.artworkUrl100);
+      if(item)return item.artworkUrl100.replace('100x100bb','600x600bb');
+    }catch(e){}
+  }
+  const norm=s=>s.toLowerCase().replace(/[^a-z0-9]/g,'');
+  const na=norm(artist),nb=norm(album);
+
+  async function trySearch(query){
+    const url='https://itunes.apple.com/search?term='+encodeURIComponent(query)+'&entity=album&limit=20';
+    try{
+      const res=await fetch(url);if(!res.ok)return[];
+      const data=await res.json();return data.results||[];
+    }catch(e){return[];}
+  }
+
+  const [r1,r2,r3]=await Promise.all([
+    trySearch(artist+' '+album),
+    trySearch(artist+' '+album+' '+new Date().getFullYear()),
+    trySearch(album+' '+artist),
+  ]);
+
+  const seen=new Set();
+  const all=[];
+  for(const r of [...r1,...r2,...r3]){
+    const key=(r.artistName||'')+'||'+(r.collectionName||'');
+    if(!seen.has(key)){seen.add(key);all.push(r);}
+  }
+
+  let best=null,bestScore=-1;
+  for(const r of all){
+    const ra=norm(r.artistName||''),rb=norm(r.collectionName||'');
+    let score=0;
+    // Artist scoring
+    if(ra===na)score+=8;
+    else if(ra.includes(na)&&na.length>3)score+=4;
+    else if(na.includes(ra)&&ra.length>3)score+=2;
+    else continue; // must match artist
+    // Album scoring — looser, don't skip if no match
+    if(rb===nb)score+=8;
+    else if(rb.includes(nb)&&nb.length>2)score+=4;
+    else if(nb.includes(rb)&&rb.length>2)score+=2;
+    if(score>bestScore){bestScore=score;best=r;}
+  }
+  if(!best||!best.artworkUrl100)return null;
+  return best.artworkUrl100.replace('100x100bb','600x600bb');
 }
 
 // ── Canvas / crop ──────────────────────────────────────────────────────────
@@ -1174,12 +1220,14 @@ function getCropParams(ai,di){
 
 function findBestCrop(img, dayIdx, albumIdx){
   // Pure seeded RNG — no pixel analysis, guaranteed identical for everyone
-  const rng=seededRng(dayIdx*137+albumIdx*31+9999);
+  // Per-album seed offsets to nudge crop away from text areas on specific covers
+  const SEED_OFFSETS={307:5555}; // 307 = Jonathan Richman I Jonathan
+  const offset=SEED_OFFSETS[albumIdx]||9999;
+  const rng=seededRng(dayIdx*137+albumIdx*31+offset);
   const GRID=8;
   const CROP_FRAC=1/6.5;
   const maxOff=1-CROP_FRAC;
-  // Pick a random tile from the middle of the grid (avoid edges which are often plain)
-  const tx=1+Math.floor(rng()*( GRID-2));
+  const tx=1+Math.floor(rng()*(GRID-2));
   const ty=1+Math.floor(rng()*(GRID-2));
   const ox=Math.min((tx/GRID)/maxOff,1)*maxOff;
   const oy=Math.min((ty/GRID)/maxOff,1)*maxOff;
