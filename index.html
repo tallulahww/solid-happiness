@@ -104,7 +104,7 @@ body{background:#fff;color:#000;font-family:'Helvetica Neue',Helvetica,Arial,san
         <div class="ans-year" id="ansYear"></div>
       </div>
     </div>
-    <button class="copy-btn" id="copyBtn">copy result</button>
+    <button class="copy-btn" id="copyBtn">share result</button>
     <div class="timer">next puzzle in <b id="countdown">--:--:--</b></div>
   </div>
   <div class="footer">
@@ -1457,7 +1457,7 @@ function saveStreak(won){
 document.getElementById('copyBtn').addEventListener('click',()=>{
   const s=G.guesses.map(g=>g.correct?'■':g.skip?'□':'▪').join(' ');
   const result=G.won?G.guesses.length+'/6':'x/6';
-  const text='what the album? #'+G.day+'\n'+G.album.artist+' — '+G.album.album+'\n'+result+' '+s;
+  const text='what the album? #'+G.day+'\n'+result+' '+s+'\nwhatthealbum.com';
   navigator.clipboard.writeText(text).then(()=>{
     const btn=document.getElementById('copyBtn');
     btn.textContent='copied.';
